@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Recipient {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  phone     String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  packages  Package[]
+}
+
+model Bin {
+  id        String    @id @default(cuid())
+  label     String    @unique  // e.g. "A-1", "Shelf-B"
+  description String?          // e.g. "Top shelf, hallway closet"
+  capacity  Int       @default(10)
+  createdAt DateTime  @default(now())
+  packages  Package[]
+}
+
+model Package {
+  id            String        @id @default(cuid())
+  barcode       String        @unique  // Internal barcode, e.g. "PKG-20260414-001"
+  description   String?
+  orderNumber   String?
+  trackingNumber String?
+  photoPath     String?                // Path to uploaded photo
+  status        String        @default("RECEIVED")  // RECEIVED | NOTIFIED | PICKED_UP
+  collectedBy   String?                // Name of person who picked it up
+  receivedAt    DateTime      @default(now())
+  notifiedAt    DateTime?
+  pickedUpAt    DateTime?
+  recipientId   String
+  recipient     Recipient     @relation(fields: [recipientId], references: [id])
+  binId         String?
+  bin           Bin?          @relation(fields: [binId], references: [id])
+
+  @@index([status])
+  @@index([recipientId])
+  @@index([barcode])
+}

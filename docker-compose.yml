@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  server:
+    build: ./server
+    ports:
+      - "3001:3001"
+    volumes:
+      - db-data:/app/prisma
+      - uploads:/app/uploads
+    env_file:
+      - ./server/.env
+    environment:
+      - DATABASE_URL=file:/app/prisma/parcel-hub.db
+
+  client:
+    build: ./client
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+
+volumes:
+  db-data:
+  uploads:
