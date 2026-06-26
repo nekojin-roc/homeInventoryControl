@@ -1,16 +1,42 @@
 const BASE = "/api";
 
+// Normalize the various error shapes the API returns into a readable string.
+// Plain string errors pass through; Zod's flattened error object
+// ({ formErrors, fieldErrors }) is collapsed into a human-readable message.
+function extractErrorMessage(error: unknown): string | undefined {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const flat = error as {
+      formErrors?: string[];
+      fieldErrors?: Record<string, string[] | undefined>;
+    };
+    const messages = [
+      ...(flat.formErrors ?? []),
+      ...Object.entries(flat.fieldErrors ?? {}).map(([field, msgs]) =>
+        msgs?.length ? `${field}: ${msgs.join(", ")}` : null
+      ),
+    ].filter((m): m is string => Boolean(m));
+    if (messages.length) return messages.join("; ");
+  }
+  return undefined;
+}
+
 async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      // Only send a JSON content-type when there's actually a body —
+      // Fastify rejects an empty body with content-type application/json.
+      ...(options?.body ? { "Content-Type": "application/json" } : {}),
+      ...options?.headers,
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? `Request failed: ${res.status}`);
+    throw new Error(extractErrorMessage(err.error) ?? `Request failed: ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

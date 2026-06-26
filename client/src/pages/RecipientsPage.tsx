@@ -23,6 +23,7 @@ export default function RecipientsPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { data: recipients, isLoading } = useQuery({
     queryKey: ["recipients"],
@@ -44,7 +45,12 @@ export default function RecipientsPage() {
   const deleteMutation = useMutation({
     mutationFn: api.deleteRecipient,
     onSuccess: () => {
+      setDeleteError(null);
       queryClient.invalidateQueries({ queryKey: ["recipients"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (err: Error) => {
+      setDeleteError(err.message);
     },
   });
 
@@ -73,6 +79,12 @@ export default function RecipientsPage() {
         </Button>
       </div>
 
+      {deleteError && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {deleteError}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Loading...</div>
       ) : !recipients?.length ? (
@@ -100,7 +112,12 @@ export default function RecipientsPage() {
                     variant="ghost"
                     size="icon"
                     className="text-muted-foreground hover:text-destructive"
+                    disabled={
+                      deleteMutation.isPending &&
+                      deleteMutation.variables === r.id
+                    }
                     onClick={() => {
+                      setDeleteError(null);
                       if (confirm(`Delete ${r.name}?`)) {
                         deleteMutation.mutate(r.id);
                       }
